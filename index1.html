@@ -1,0 +1,426 @@
+<style> /* 消除網頁預設邊距 */ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; /* 防止出現捲軸 */ } /* 假設你的遊戲畫布或容器 ID 是 gameCanvas */ #gameCanvas { width: 100vw; height: 100vh; object-fit: contain; /* 保持比例縮放 */ display: block; } </style>
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>腎利人生 - 超級萌衛教小幫手</title>
+   
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+       
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(180deg, #fffcf0 0%, #fff1f2 100%);
+            color: #475569;
+            user-select: none;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.2s ease;
+        }
+
+        /* 背景裝飾 */
+        .bg-decoration {
+            position: fixed;
+            top: -5%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(254, 215, 170, 0.4) 0%, transparent 70%);
+            z-index: -1;
+        }
+
+        /* Q彈飄浮動畫 */
+        @keyframes floatingMega {
+            0% { transform: translateY(0px) scale(1, 1); }
+            50% { transform: translateY(-35px) scale(1.04, 0.96); }
+            100% { transform: translateY(0px) scale(1, 1); }
+        }
+        .animate-floating-mega {
+            animation: floatingMega 4s ease-in-out infinite;
+        }
+
+        /* 重力震動動畫 (答錯用) */
+        @keyframes shake-heavy {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-15px); }
+            20%, 40%, 60%, 80% { transform: translateX(15px); }
+        }
+        .animate-heavy-shake {
+            animation: shake-heavy 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        /* 招手動畫 */
+        @keyframes wavingHand {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-30deg); }
+        }
+        .hand-wave {
+            transform-origin: 35px 35px;
+            animation: wavingHand 1s ease-in-out infinite;
+        }
+
+        .soft-card {
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 3.5rem;
+            border: 6px solid #ffffff;
+            box-shadow: 0 20px 50px -15px rgba(251, 146, 60, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .main-headline {
+            font-size: 3.2rem;
+            font-weight: 900;
+            line-height: 1.1;
+            color: #1e293b;
+            letter-spacing: -0.02em;
+        }
+
+        .btn-speech-red {
+            background: #ffffff;
+            border: 12px solid #fb7185;
+            border-radius: 4.5rem;
+            padding: 2.2rem 1.5rem;
+            color: #e11d48;
+            font-weight: 900;
+            font-size: 2.4rem;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            box-shadow: 0 15px 40px rgba(225, 29, 72, 0.25);
+        }
+        .btn-speech-red:active { transform: scale(0.96); border-color: #f43f5e; }
+
+        .menu-grid-btn {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 2.8rem;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 4px solid #ffffff;
+            padding: 1rem;
+        }
+        .menu-grid-btn:active { transform: scale(0.92); }
+        .menu-grid-btn span {
+            margin-top: 1.25rem;
+            font-weight: 900;
+            color: #475569;
+            font-size: 1.2rem;
+        }
+
+        .btn-choice {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 2.2rem;
+            background: #ffffff;
+            text-align: left;
+            padding: 1.4rem 1.5rem;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            border: 3px solid #f8fafc;
+        }
+       
+        .option-marker {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            flex-shrink: 0;
+            font-weight: 900;
+            font-size: 1.4rem;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.06);
+        }
+
+        .btn-wrong { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
+        .btn-correct { background-color: #ecfdf5 !important; border-color: #22c55e !important; color: #065f46 !important; }
+        .flash-red-bg { background-color: #ef4444 !important; }
+
+        .modal-show { animation: slideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(100px); } to { opacity: 1; transform: translateY(0); } }
+
+        .chart-container { position: relative; width: 100%; max-width: 280px; margin: 0 auto; height: 220px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div class="bg-decoration"></div>
+
+    <nav class="sticky top-0 z-50 px-6 py-6 flex justify-between items-center bg-white/40 backdrop-blur-md border-b border-orange-100 shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="bg-rose-400 p-2 rounded-2xl text-white shadow-md">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            </div>
+            <div>
+                <h1 class="font-black text-slate-800 text-xl tracking-tight leading-none">腎利人生</h1>
+                <p class="text-[10px] text-rose-500 font-black tracking-widest mt-1 uppercase italic">Care & Play</p>
+            </div>
+        </div>
+        <div id="nav-badge" class="hidden">
+            <span class="bg-rose-500 text-white text-[10px] px-3 py-1 rounded-full font-black animate-pulse italic">遊戲中</span>
+        </div>
+    </nav>
+
+    <main id="app-root" class="flex-grow p-6 max-w-md mx-auto w-full flex flex-col justify-center">
+        <!-- 動態渲染 -->
+    </main>
+
+    <footer class="p-10 text-center text-slate-400">
+        <p class="text-sm font-bold tracking-widest opacity-60 italic leading-relaxed">汐止國泰醫院洗腎室<br>專業團隊守護您的健康</p>
+    </footer>
+
+    <script>
+        // --- 核心語音：1.55 倍極速導讀 ---
+        function speakChat(text, mood = 'normal') {
+            if (!state.audioUnlocked) return;
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'zh-TW';
+            utter.rate = 1.55;  
+            utter.pitch = mood === 'excited' ? 1.1 : 0.95;
+            window.speechSynthesis.speak(utter);
+        }
+
+        // --- 質感繪圖庫 (SVG) ---
+        const illustrations = {
+            kidney_mega: `<svg viewBox="0 0 240 240" class="w-full max-w-[320px] h-auto animate-floating-mega mx-auto">
+                <defs><radialGradient id="gradK" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:#fff1f2" /><stop offset="60%" style="stop-color:#fecdd3" /><stop offset="100%" style="stop-color:#fca5a5" /></radialGradient></defs>
+                <g transform="translate(60, 55)">
+                    <path d="M60 0 C 0 5, 0 100, 60 140 C 120 100, 120 5, 60 0" fill="url(#gradK)" stroke="#f43f5e" stroke-width="5"/>
+                    <circle cx="40" cy="50" r="6" fill="#1e293b"/><circle cx="80" cy="50" r="6" fill="#1e293b"/>
+                    <circle cx="25" cy="65" r="10" fill="#f43f5e" opacity="0.2"/><circle cx="95" cy="65" r="10" fill="#f43f5e" opacity="0.2"/>
+                    <path d="M52 75 Q 60 85, 68 75" fill="none" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+                    <g class="hand-wave"><path d="M115 50 Q 140 20, 135 60" fill="none" stroke="#f43f5e" stroke-width="10" stroke-linecap="round"/></g>
+                </g>
+            </svg>`,
+            kidney_unit: `<svg viewBox="0 0 200 200" class="w-48 h-48"><g transform="translate(75, 75)"><path d="M25 0 C 0 5, 0 45, 25 60 C 50 45, 50 5, 25 0" fill="#fca5a5" stroke="#f43f5e" stroke-width="4"/><circle cx="15" cy="15" r="2" fill="#1e293b"/><circle cx="35" cy="15" r="2" fill="#1e293b"/></g></svg>`,
+            water_drop: `<svg viewBox="0 0 200 200" class="w-48 h-48"><path d="M100 40 Q 65 100, 65 140 A 35 35 0 0 0 135 140 Q 135 100, 100 40" fill="#bae6fd" stroke="#0ea5e9" stroke-width="4"/></svg>`,
+            meal_plate: `<svg viewBox="0 0 200 200" class="w-48 h-48"><circle cx="100" cy="100" r="75" fill="#ffffff" stroke="#f1f5f9" stroke-width="8"/><g transform="translate(65, 75)"><circle cx="20" cy="20" r="20" fill="#86efac" opacity="0.9"/><rect x="45" y="10" width="35" height="25" rx="8" fill="#fef08a" opacity="0.9"/><path d="M30 55 Q 60 70, 85 45" fill="#fecaca" stroke="#fca5a5" stroke-width="12" stroke-linecap="round"/></g></svg>`,
+            vessel_arm: `<svg viewBox="0 0 200 200" class="w-48 h-48"><path d="M40 145 Q 60 85, 145 115" fill="none" stroke="#ffe4e6" stroke-width="45" stroke-linecap="round"/><path d="M68 122 H 138" stroke="#7dd3fc" stroke-width="15" stroke-linecap="round" opacity="0.8"/></svg>`,
+            wrong_cross: `<svg viewBox="0 0 200 200" class="w-56 h-56"><circle cx="100" cy="100" r="70" fill="none" stroke="#fecaca" stroke-width="15"/><path d="M70 70 L130 130 M130 70 L70 130" stroke="#ef4444" stroke-width="15" stroke-linecap="round"/></svg>`
+        };
+
+        const markers = [
+            { bg: '#e0f2fe', color: '#0369a1', label: 'A' },
+            { bg: '#fce7f3', color: '#be185d', label: 'B' },
+            { bg: '#fef3c7', color: '#b45309', label: 'C' }
+        ];
+
+        const state = {
+            view: 'start', category: null, questionIdx: 0, score: 0, audioUnlocked: false,
+            quizRepo: {
+                ckd: { title: "認識腎臟", questions: [
+                    { q: "發現尿液泡泡大量且過好久都散不掉，代表？", a: ["水分喝不足的正常氣泡", "可能有蛋白尿的警訊", "排尿速度太快導致"], correct: 1, tts: "第一題來囉！如果您發現馬桶裡的泡泡過了好久都散不掉，您覺得代表什麼意思呢？", exp: "泡泡散不掉通常是蛋白尿的警訊。這代表腎臟屏障受損了，建議趕快找專業醫師檢查。" },
+                    { q: "按壓腳踝水腫留下凹洞不彈回，應該要就醫嗎？", a: ["要，排水功能出問題了", "不用，只是最近比較累", "多走走路就會恢復"], correct: 0, tts: "腳腫腫的按下去會留下凹痕不彈回來，您覺得應該要看醫生嗎？", exp: "按壓不回彈是典型水腫特徵，代表排水功能受損。一定要找醫師檢查喔！" },
+                    { q: "身體疼痛時，可以隨便去藥局買止痛藥吃嗎？", a: ["可以，止痛就好", "不可以，成藥可能傷腎", "選擇大品牌沒關係"], correct: 1, tts: "平常如果身體不舒服，可以直接去藥局隨便買止痛藥吃嗎？", exp: "許多止痛藥具備腎毒性。在服用任何藥物前，請務必諮詢您的醫師才安全。" },
+                    { q: "長期血壓血糖不穩定，會對腎臟造成傷害嗎？", a: ["沒顯著影響", "會直接破壞腎微血管", "不知道耶"], correct: 1, tts: "如果血壓跟血糖一直控制不好，您覺得腎臟會不會壞掉呢？", exp: "高血糖與高血壓會慢慢弄壞腎臟微血管。穩定控制這兩項指標就是護腎最好的方式。" },
+                    { q: "檢驗報告中的腎過濾分數（越高分）代表？", a: ["腎臟運作很健全", "腎臟負荷太重了", "無參考指標"], correct: 0, tts: "檢驗分數越高，代表腎功能越強還是越弱呢？", exp: "過濾分數越高，代表腎臟清除廢物的能力越強。我們要一起努力維持好分數！" }
+                ]},
+                dialysis: { title: "透析生活", questions: [
+                    { q: "每次洗腎時，機器是在幫您的身體做什麼？", a: ["模擬腎臟排除廢物水分", "增加血液中的營養", "替換全身老化血液"], correct: 0, tts: "嘿！您覺得每次洗腎的時候，機器是在幫您的身體做什麼最重要的工作呢？", exp: "洗腎機就像人工腎臟，幫您排除排不掉的毒素與多餘水分。辛苦您囉！" },
+                    { q: "兩次洗腎間體重增加，建議控制在原體重的？", a: ["不超過 5% 以內", "不超過 20% 以內", "不需要控制"], correct: 0, tts: "兩次透析之間，體重增加最好控制在百分之多少比較安全？", exp: "水分增加太多對心臟負荷很大！務必控制在 5% 以內，預防衰竭風險。" },
+                    { q: "返家後發現傷口滲血，您的第一反應應該是？", a: ["確實按壓止血點並聯絡醫院", "先睡一覺等明天說", "拿熱水敷一下"], correct: 0, tts: "如果回家後發現傷口滲血，第一反應要做什麼呢？", exp: "滲血不能大意！請立即用指腹用力按住止血點並聯絡醫院。絕對不能去睡覺觀察喔！" },
+                    { q: "規律的中低強度運動（如散步）對腎友有好處嗎？", a: ["提升循環與心情放鬆", "只是在浪費體力", "會加速功能惡化"], correct: 0, tts: "您覺得平常去散散步動一動，對健康有幫助嗎？", exp: "適度運動能促進血液循環，對血壓控制跟心情都很好。一起動起來吧！" },
+                    { q: "換腹膜藥水前，用肥皂徹底清潔雙手的重要性？", a: ["預防細菌引發腹膜炎", "只是為了美觀", "不具備特殊意義"], correct: 0, tts: "更換藥水前，一定要用肥皂把手洗得很乾淨嗎？這很重要嗎？", exp: "澈底清潔是保護您的生命線！這能阻斷細菌進入肚子，是照護的首要任務。" }
+                ]},
+                diet: { title: "飲食挑戰", questions: [
+                    { q: "香腸、火腿等加工食品，為什麼不建議常吃？", a: ["含有化學磷，吸收率極高", "蛋白質太營養了", "沒什麼特別影響"], correct: 0, tts: "您知道為什麼不能常常吃加工食品嗎？它對腎臟哪裡不好？", exp: "加工食品含有大量化學磷，身體幾乎全部吸收！這會讓血管鈣化、骨頭變脆喔。" },
+                    { q: "煮青菜採取什麼步驟，可以有效降低鉀離子？", a: ["熱水汆燙過後倒掉湯汁", "直接大火快炒即可", "生吃最營養"], correct: 0, tts: "煮青菜的時候，採取什麼祕密步驟可以濾掉對心臟不好的鉀呢？", exp: "正確！先燙過、倒掉湯水再炒，可以濾掉一半以上的鉀，對心臟最安全了。" },
+                    { q: "如果檢驗發現血色素偏低（貧血），團隊建議？", a: ["吃牛肉補鐵配降磷藥片", "完全禁止肉類攝取", "只喝牛肉湯就好"], correct: 0, tts: "如果您血色素太低、沒力氣，護理師會鼓勵您多吃什麼補鐵嗎？", exp: "牛肉是優質鐵質來源！只要配著降磷藥片一起吃，就是補血的最佳方案。" },
+                    { q: "洗腎的朋友可以吃「楊桃」或楊桃製品嗎？", a: ["絕對禁止，含有致命毒素", "少量即可解饞", "是優質水果"], correct: 0, tts: "這是生命安全題：您覺得楊桃這種水果，洗腎的人可以吃一點點解饞嗎？", exp: "絕對、絕對不可以！楊桃有致命的神經毒性，腎臟排不掉，吃了會很危險！" },
+                    { q: "降磷藥片（磷結合劑）什麼時候服用效果最好？", a: ["配飯一起嚼碎吞下", "肚子空空時服用", "睡前一次服用"], correct: 0, tts: "發給您的降磷藥片，您覺得什麼時候吃藥效最強呢？", exp: "降磷藥要跟食物混在一起才能抓走磷離子！記得一定要隨餐嚼碎吃喔。" }
+                ]},
+                access: { title: "血管照護", questions: [
+                    { q: "每天摸摸血管通路（生命線），感覺到什麼才通暢？", a: ["強力的沙沙震動感", "涼涼滑滑的感覺", "完全沒感覺"], correct: 0, tts: "為了確保生命線是通暢的，每天摸的時候要感覺到什麼？", exp: "一定要有明顯的沙沙震動感！如果震動消失了，請一定要立刻聯繫我們喔。" },
+                    { q: "洗腎的那隻手臂，在生活上應絕對避免行為？", a: ["量血壓或墊枕頭壓著睡", "提重物鍛鍊肌肉", "保持外觀清潔"], correct: 0, tts: "您覺得洗腎的那隻手，可以當枕頭墊著頭睡覺嗎？", exp: "不可以！壓迫是血管的大忌。那隻手不能量血壓也不能壓睡，要好好護著它。" },
+                    { q: "為什麼在接受洗腎打針之前，要徹底清潔手臂？", a: ["預防細菌隨針進入血管", "單純為了乾淨美觀", "讓針頭比較好插"], correct: 0, tts: "為什麼在打針透析前，我們要求您務必用肥皂徹底清潔整隻手臂呢？", exp: "澈底清潔能把細菌降到最低，預防嚴重感染！這是護血管的第一步。" },
+                    { q: "血管處皮膚瘙癢，下列處理方式何者正確？", a: ["輕拍或塗抹醫囑乳液", "用力抓到止癢為止", "拿熱水燙一燙"], correct: 0, tts: "如果血管周邊好癢好癢，您覺得採取什麼方式止癢最安全？", exp: "千萬不能抓破皮！抓破了細菌鑽進去會很麻煩，輕輕拍打或抹乳液就好。" },
+                    { q: "穿刺部位的紗布建議何時移除最保險？", a: ["保留至隔日清晨最保險", "到家馬上撕掉", "兩三小時就拆"], correct: 0, tts: "為了確保完全止血，您覺得紗布要留到什麼時候再拆最保險？", exp: "建議留到明天早上太陽出來再拆。這能確保血塊完全穩固，預防半夜意外出血。" }
+                ]}
+            }
+        };
+
+        const render = () => {
+            const root = document.getElementById('app-root');
+            if(!root) return;
+            root.innerHTML = '';
+            if (state.view === 'start') renderStart(root);
+            else if (state.view === 'menu') renderMenu(root);
+            else if (state.view === 'quiz') renderQuiz(root);
+            else if (state.view === 'result') renderResult(root);
+            window.scrollTo(0, 0);
+        };
+
+        const renderStart = (root) => {
+            root.innerHTML = `
+                <div class="animate-in fade-in duration-700 text-center">
+                    <div class="mb-4">${illustrations.kidney_mega}</div>
+                    <div class="text-left mb-10 px-4">
+                        <h1 class="main-headline">您好我是您的<br><span class="text-rose-500">腎臟小幫手</span></h1>
+                        <p class="sub-headline">我們來玩個輕鬆的小遊戲，一起練習怎麼照顧腎臟吧！準備好了嗎？</p>
+                    </div>
+                    <div class="py-4 mb-12">
+                        <button id="unlock-btn" class="btn-speech-red animate-bounce">📢 啟動語音伴讀</button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-6 pt-10 text-left px-2 border-t-2 border-white/60">
+                        <p class="text-[11px] font-black text-slate-400 text-center mb-1 tracking-widest uppercase font-black">選個角色出發挑戰</p>
+                        ${[
+                            { p: '健康夥伴', i: '🏃', c: '大眾挑戰' },
+                            { p: '醫事專家', i: '🎓', c: '專業精準' },
+                            { p: '資深智友', i: '🧑‍🦳', c: '腎友榜樣' }
+                        ].map(item => `
+                            <button onclick="pickPersona('${item.p}')" class="w-full bg-white/50 border-2 border-white p-5 rounded-[2.5rem] flex items-center gap-6 group hover:bg-white transition-all shadow-sm">
+                                <div class="text-6xl group-hover:scale-110 transition-transform">${item.i}</div>
+                                <div class="text-left">
+                                    <div class="font-black text-xl text-slate-800">${item.p}</div>
+                                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">${item.c} ‧ 已就緒</div>
+                                </div>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>`;
+            document.getElementById('unlock-btn').onclick = () => {
+                state.audioUnlocked = true;
+                const dummy = new SpeechSynthesisUtterance(' '); window.speechSynthesis.speak(dummy);
+                speakChat("來囉！我是您的腎臟小幫手。今天我們不說教，來玩個輕鬆的小遊戲，看看怎麼照顧腎臟最棒！準備好了嗎？我們選個角色出發挑戰吧！");
+                document.getElementById('unlock-btn').innerText = "✅ 語音伴讀已開啟";
+                document.getElementById('unlock-btn').classList.add('opacity-40');
+            };
+        };
+
+        const renderMenu = (root) => {
+            const badge = document.getElementById('nav-badge');
+            if(badge) badge.classList.add('hidden');
+            root.innerHTML = `
+                <div class="space-y-12 animate-in slide-in-from-bottom-10 duration-500">
+                    <div class="py-4 text-center">
+                        <h3 class="text-4xl font-black text-slate-800 tracking-tight">請選一個單元開始。</h3>
+                    </div>
+                    <div class="grid grid-cols-2 gap-8 px-2">
+                        ${[
+                            { id: 'ckd', title: '認識腎臟', icon: illustrations.kidney_unit },
+                            { id: 'dialysis', title: '透析生活', icon: illustrations.water_drop },
+                            { id: 'diet', title: '飲食挑戰', icon: illustrations.meal_plate },
+                            { id: 'access', title: '血管照護', icon: illustrations.vessel_arm }
+                        ].map(unit => `
+                            <button onclick="startQuiz('${unit.id}')" class="menu-grid-btn">
+                                <div class="w-24 h-24 flex items-center justify-center scale-150">${unit.icon}</div>
+                                <span>${unit.title}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>`;
+        };
+
+        const renderQuiz = (root) => {
+            const badge = document.getElementById('nav-badge');
+            if(badge) badge.classList.remove('hidden');
+            const cat = state.quizRepo[state.category];
+            const q = cat.questions[state.questionIdx];
+            if(q.tts) speakChat(q.tts);
+            root.innerHTML = `
+                <div id="quiz-container" class="space-y-10 animate-in fade-in py-4">
+                    <div class="flex justify-between items-center px-1">
+                        <span class="text-[10px] font-black text-rose-500/60 uppercase tracking-[0.2em] font-black">${cat.title} 評測</span>
+                        <span class="bg-rose-400 text-white text-[11px] px-3 py-1 rounded-full font-black shadow-sm">第 ${state.questionIdx + 1} 題 / 5</span>
+                    </div>
+                    <div class="px-2">
+                        <h3 class="text-3xl font-black text-slate-800 mb-12 leading-snug tracking-tighter">${q.q}</h3>
+                        <div class="space-y-6">
+                            ${q.a.map((opt, idx) => `
+                                <button onclick="checkAnswer(${idx})" class="btn-choice soft-card">
+                                    <div class="option-marker" style="background: ${markers[idx].bg}; color: ${markers[idx].color}">${markers[idx].label}</div>
+                                    <span class="font-bold text-slate-600 text-xl leading-relaxed">${opt}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>`;
+        };
+
+        const renderResult = (root) => {
+            window.speechSynthesis.cancel();
+            const score = state.score;
+            root.innerHTML = `
+                <div class="text-center space-y-12 animate-in zoom-in px-2">
+                    <div class="text-[10rem] mb-6 drop-shadow-2xl">${score >= 3 ? '🏆' : '💪'}</div>
+                    <h2 class="text-4xl font-black text-slate-800 tracking-tight">${score >= 3 ? '挑戰成功！好優秀' : '評測結束：再努力一下'}</h2>
+                    <p class="text-slate-500 font-bold italic text-xl">這次評測答對了 ${score} 題！</p>
+                    <div class="soft-card p-10 bg-white/90">
+                        <h4 class="text-xs font-black text-slate-400 uppercase mb-8 tracking-widest text-center">數據掌握程度</h4>
+                        <div class="chart-container"><canvas id="analysisChart"></canvas></div>
+                    </div>
+                    <button onclick="state.view='menu'; render();" class="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-2xl shadow-2xl active:scale-95 transition-all">換個單元試試！</button>
+                </div>`;
+            setTimeout(() => initResultChart(score, 5), 100);
+            speakChat(score >= 3 ? "專題評測結束。您的表現非常優秀！這份護腎智慧請繼續保持喔。" : "專題評測結束。數據顯示您仍有強化空間，我們稍後再次挑戰。");
+        };
+
+        window.pickPersona = (p) => { state.persona = p; state.view = 'menu'; render(); speakChat(`角色設定完成。我們出發吧。`); };
+        window.startQuiz = (id) => { state.category = id; state.questionIdx = 0; state.score = 0; state.view = 'quiz'; render(); };
+       
+        window.checkAnswer = (idx) => {
+            const cat = state.quizRepo[state.category];
+            const q = cat.questions[state.questionIdx];
+            const isCorrect = (idx === q.correct);
+            const quizNode = document.getElementById('quiz-container');
+
+            if(!isCorrect) {
+                // 強力震動感：物理 + 視覺 + 閃紅
+                if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+                if (quizNode) quizNode.classList.add('animate-heavy-shake');
+                document.body.classList.add('flash-red-bg');
+               
+                speakChat("選錯了！這題要注意喔。");
+                setTimeout(() => {
+                    document.body.classList.remove('flash-red-bg');
+                    if (quizNode) quizNode.classList.remove('animate-heavy-shake');
+                    showExplanationModal(false, q);
+                }, 700);
+            } else {
+                state.score++;
+                showExplanationModal(true, q);
+            }
+        };
+
+        function showExplanationModal(isCorrect, q) {
+            const overlay = document.createElement('div');
+            overlay.className = "fixed inset-0 z-[100] bg-slate-900/70 backdrop-blur-lg p-6 flex items-end sm:items-center justify-center";
+            overlay.innerHTML = `
+                <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 modal-show shadow-2xl border-t-[20px] text-center" style="border-top-color: ${isCorrect ? '#6ee7b7' : '#ef4444'}">
+                    <div class="text-7xl mb-6">${isCorrect ? '✨' : '💖'}</div>
+                    <h3 class="text-3xl font-black mb-8 italic tracking-tighter ${isCorrect ? 'text-emerald-600' : 'text-rose-500'}">${isCorrect ? '判斷正確！好優秀' : '提醒：要注意喔'}</h3>
+                    <div class="max-h-[160px] overflow-y-auto text-left mb-10 px-4 font-bold leading-relaxed text-slate-600 text-lg font-black"><p>${q.exp}</p></div>
+                    <button onclick="this.parentElement.parentElement.remove(); nextStep();" class="w-full bg-slate-900 text-white py-6 rounded-[2.5rem] font-black text-2xl shadow-xl active:scale-95 transition-all">繼續挑戰</button>
+                </div>`;
+            document.body.appendChild(overlay);
+            speakChat((isCorrect ? "答對囉！" : "雖然這題選錯了，但我們來聽聽看導讀。") + q.exp, isCorrect ? 'excited' : 'normal');
+        }
+
+        window.nextStep = () => { window.speechSynthesis.cancel(); state.questionIdx++; if(state.questionIdx < 5) render(); else { state.view = 'result'; render(); } };
+
+        function initResultChart(score, total) {
+            const ctx = document.getElementById('analysisChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: ['掌握', '待強化'], datasets: [{ data: [score, total-score], backgroundColor: ['#fb7185', '#f1f5f9'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false } } }
+            });
+        }
+        render();
+    </script>
+</body>
+</html>
