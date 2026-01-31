@@ -183,29 +183,17 @@
     </footer>
 
     <script>
-        function speakChat(text) {
-    // 1. 先確認使用者有沒有點過「啟動語音」按鈕，否則瀏覽器會封鎖聲音
-    if (!state.audioUnlocked) return;
+        // --- 核心語音：1.55 倍極速導讀 ---
+        function speakChat(text, mood = 'normal') {
+            if (!state.audioUnlocked) return;
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'zh-TW';
+            utter.rate = 1.0;  
+            utter.pitch = mood === 'excited' ? 0.85 : 0.9;
+            window.speechSynthesis.speak(utter);
+        }
 
-    // 2. 重要！播放新聲音前，先取消正在講的話，避免聲音重疊打架
-    window.speechSynthesis.cancel();
-
-    // 3. 設定延遲，確保手機瀏覽器有時間準備發聲引擎
-    setTimeout(() => {
-        // 加入標點符號後的空格，強迫機器人「換氣停頓」
-        const slowText = text.replace(/，/g, '，  ').replace(/。/g, '。   ');
-        
-        const utter = new SpeechSynthesisUtterance(slowText);
-        
-        // ---【這裡就是調整語速的核心】---
-        utter.lang = 'zh-TW';    // 設定為台灣中文
-        utter.rate = 0.75;       // 語速：1.0 是正常，0.75 到 0.8 是長輩最舒適的慢速
-        utter.pitch = 1.0;      // 音高：1.0 是自然音，若設 0.9 會變深沈
-        // ----------------------------
-
-        window.speechSynthesis.speak(utter);
-    }, 150);
-}
         // --- 質感繪圖庫 (SVG) ---
         const illustrations = {
             kidney_mega: `<svg viewBox="0 0 240 240" class="w-full max-w-[320px] h-auto animate-floating-mega mx-auto">
@@ -436,4 +424,3 @@
     </script>
 </body>
 </html>
-
